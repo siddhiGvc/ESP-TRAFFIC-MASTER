@@ -1,5 +1,7 @@
 
 #include <stdio.h>
+#include <time.h>
+#include "esp_sntp.h"
 #include <stdlib.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
@@ -38,12 +40,74 @@
 
 static const char *TAG = "main";
 
+// Function to initialize SNTP
+void initialize_sntp(void) {
+    printf("Initializing SNTP...\n");
+
+    // Set SNTP operating mode to polling
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+
+    // Set the NTP server
+    sntp_setservername(0, "pool.ntp.org");  // Public NTP server
+
+    // Initialize SNTP
+    sntp_init();
+
+    // Wait for the system time to be set
+    time_t now = 0;
+    struct tm timeinfo = { 0 };
+    while (timeinfo.tm_year < (2020 - 1900)) {
+        printf("Waiting for time synchronization...\n");
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        time(&now);
+        localtime_r(&now, &timeinfo);
+    }
+    printf("Time synchronized successfully!\n");
+}
+
+
+void getTime(void) {
+    
+    time_t now;
+    struct tm timeinfo;
+
+    // Get the current time
+    time(&now);
+
+    // Convert to local time
+    localtime_r(&now, &timeinfo);
+
+    // Print the current date and time
+    ESP_LOGI(TAG,"Current Date: %02d-%02d-%04d\n",
+           timeinfo.tm_mday,
+           timeinfo.tm_mon + 1,  // tm_mon is months since January
+           timeinfo.tm_year + 1900);  // tm_year is years since 1900
+
+    ESP_LOGI(TAG,"Current Time: %02d:%02d:%02d\n",
+           timeinfo.tm_hour,
+           timeinfo.tm_min,
+           timeinfo.tm_sec);
+
+    // Delay for 15 seconds
+    vTaskDelay(15000 / portTICK_PERIOD_MS);
+
+}
+
+
+// Task to repeatedly call getTime
+void timeTask(void *pvParameters) {
+    initialize_sntp();
+    while (1) {
+        getTime();  // Call the function
+    }
+}
+
 void app_main(void)
 {
     //Initialize NVS
     //esp_log_level_set("*", ESP_LOG_NONE);
     // set totals to 0
-
+    
     MQTTRequired = 0;
     for (int i = 0 ; i < 7 ; i++)
     {
@@ -66,12 +130,15 @@ void app_main(void)
     uart_write_string(FWVersion);
     read_mac_address();
     xTaskCreate(tcpip_client_task, "tcpip_client_task", 8192, NULL, 7, NULL);
+    xTaskCreate(timeTask, "Time Task", 2048, NULL, 5, NULL);
     load_settings_nvs();
     ESP_LOGI(TAG, "*Starting ICH#");
     ICH_init();
     ESP_LOGI(TAG, "*Starting S2P#");
     s2p_init();
     Out4094(0x00);; // set all outputs inactive
+
+    
 
     // for (int i = 0 ; i < 3 ; i++)
     // {
@@ -102,3 +169,5 @@ void app_main(void)
         vTaskDelay(100);   
     }
 }
+
+

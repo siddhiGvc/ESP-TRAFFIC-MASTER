@@ -16,6 +16,8 @@ char WIFI_PASS_2[64];
 char WIFI_SSID_3[64];
 char WIFI_PASS_3[64];
 
+time_t current_time;
+
 char server_ip_addr[100];
 char ipstr[100]; // host mapped
 
