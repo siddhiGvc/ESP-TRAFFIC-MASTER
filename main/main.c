@@ -96,7 +96,7 @@ void getTime(void) {
 
 // Task to repeatedly call getTime
 void timeTask(void *pvParameters) {
-    initialize_sntp();
+    // initialize_sntp();
     while (1) {
         getTime();  // Call the function
     }
